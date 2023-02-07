@@ -64,19 +64,19 @@ def entende_media(ma_25, ma_50, ma_100, n=-2):
             tipo = 'tendencia_subindo'
     return tipo
 
-# velas = all_candles('btcusdt', '1m')
-# fechamentos = all_closes(velas)
-arquivo = open('fechamentos.txt', 'r')
-fechamentos = eval(arquivo.read())
-arquivo.close()
+velas = all_candles('btcusdt', '30m')
+fechamentos = all_closes(velas)
+# arquivo = open('fechamentos.txt', 'r')
+# fechamentos = eval(arquivo.read())
+# arquivo.close()
 
 rsi = give_rsi(fechamentos)
 ma_25, ma_50, ma_100 = pega_media_movel(fechamentos)
 
-saves['btcusdt'] = {'1m' : {}}
-# arquivo = open('fechamentos.txt', 'w')
-# arquivo.write(str(fechamentos))
-# arquivo.close()
+saves['btcusdt'] = {'30m' : {}}
+arquivo = open('fechamentos.txt', 'w')
+arquivo.write(str(fechamentos))
+arquivo.close()
 
 # 100% close
 # x%   ma
@@ -90,6 +90,8 @@ for ma in [ma_25, ma_50, ma_100]:
             break
 
     print(tipo_ma)
+    ant_close = None
+    vari_closes = {}
 
     for n, ma_ in enumerate(ma):
         if str(ma_) == 'nan':
@@ -97,16 +99,33 @@ for ma in [ma_25, ma_50, ma_100]:
         
         close = float(fechamentos[n])
         ma_ = float(ma_)
+
+        if not ant_close:
+            ant_close = close
+        else:
+            vari = f'{((ant_close - close) * 100)/close:.2f}%'
+            if vari in vari_closes:
+                vari_closes[vari] += 1
+            else:
+                vari_closes[vari] = 1
+            ant_close = close
+
+    copy_vari_closes = sorted(vari_closes)
+    for ind in copy_vari_closes:
+        print(f'{ind}: {vari_closes[ind]}', end=', ')
+
+    exit()
         
         # verifica a porcentagem de variação !!!!!!!!!!!!!!!!!!!!!!!!!!!!
+        # vari = ((ma_ - close) * 100)/close
 
-        if vari in variacao[tipo_ma]:
-            variacao[tipo_ma][vari] += 1
-        else:
-            variacao[tipo_ma][vari] = 1
+#         if vari in variacao[tipo_ma]:
+#             variacao[tipo_ma][vari] += 1
+#         else:
+#             variacao[tipo_ma][vari] = 1
 
-print(variacao)
-print(max(vari), variacao[max(vari)])
+# print(variacao)
+# print(max(vari), variacao[max(vari)])
 
 # for close in fechamentos:
 #     if None in (rsi, ma_25, ma_50, ma_100):
