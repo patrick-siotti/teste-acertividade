@@ -3,18 +3,15 @@ from apibinance import api_key, api_secret
 import numpy as np
 import pandas as pd
 import time
-import win32api
+import os
 
 #login client
-client = Client(api_key, api_secret)
+client = Client(api_key, api_secret, testnet=True)
 
-#sincronizing a server time
+#sincronizing ao server time
 gt = client.get_server_time()
 tt=time.gmtime(int((gt["serverTime"])/1000))
-win32api.SetSystemTime(tt[0],tt[1],0,tt[2],tt[3],tt[4],tt[5],0)
-
-#var
-saves = {}
+os.system(f'touch -t {tt[0],tt[1],0,tt[2],tt[3],tt[4],tt[5],0}')
 
 def last_close(synbol, interval):
     return client.futures_historical_klines(synbol, interval, '1d')[-2][4]
@@ -64,19 +61,32 @@ def entende_media(ma_25, ma_50, ma_100, n=-2):
             tipo = 'tendencia_subindo'
     return tipo
 
-velas = all_candles('btcusdt', '30m')
-fechamentos = all_closes(velas)
-# arquivo = open('fechamentos.txt', 'r')
-# fechamentos = eval(arquivo.read())
+tempo = '1m'
+# saves['btcusdt'] = {tempo : {}} tirei pq por em quanto n vai ser necessario
+
+# pegar um já salvo
+arquivo = open('fechamentos.txt', 'r')
+fechamentos = eval(arquivo.read())
+arquivo.close()
+
+# escrever para salvar
+# velas = all_candles('btcusdt', tempo)
+# fechamentos = all_closes(velas)
+# arquivo = open('fechamentos.txt', 'w')
+# arquivo.write(str(fechamentos))
 # arquivo.close()
 
 rsi = give_rsi(fechamentos)
 ma_25, ma_50, ma_100 = pega_media_movel(fechamentos)
 
-saves['btcusdt'] = {'30m' : {}}
-arquivo = open('fechamentos.txt', 'w')
-arquivo.write(str(fechamentos))
-arquivo.close()
-
 # apartir da qui
-        # vari = f'{((ant_close - close) * 100)/close:.2f}%'
+# vari = f'{((ant_close - close) * 100)/close:.2f}%'
+saves = {}
+vari = None
+for num, fec in enumerate(fechamentos):
+    if num == 0:
+        vari = 0
+    else:
+        vari = f'{((float(fechamentos[num-1]) - float(fec)) * 100)/float(fec):.2f}%'
+    print(f'fechamento: {fec}\nvariação: {vari}\nrsi: {rsi[num]:.2f}\nmédia movel 25,50,100: {ma_25[num]:.2f} | {ma_50[num]:.2f} | {ma_100[num]:.2f}\n\n\n')
+    time.sleep(1)
