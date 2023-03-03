@@ -94,14 +94,26 @@ rsi = give_rsi(fechamentos)
 ma_25, ma_50, ma_100 = pega_media_movel(fechamentos)
 
 # apartir da qui
-# vari = f'{((ant_close - close) * 100)/close:.2f}%'
+
+# vari = f'{((ant_close - close) * 100)/close:.2f}%' para descobrir a variação
 quant_save = 2 # quantidade do histórico que sera salvo para 
 vari = None
-# [{'variacao': [], 'rsi': [], 'tendencia': [], 'primeira_vari': 0, 'deslocamento_final': 0, 'green': 0, 'loss': 0, 'acertividade': 0, 'apostar': False}]
-saves = []
+
+# como funciona essa variavel:
+# [{'variacao': [variação_de_entrada, [lista_contendo_variações_seguintes]],
+#  'rsi': [rsi_da_primeira_variação, rsi_da_segunda_variação],
+#  'tendencia': [tendencia da primeira variação, tendencia da segunda variação], 
+#  'primeira_vari': 0, inteiro com a variação da primeira aposta
+#  'deslocamento_final': 0, inteiro com o deslocamento final
+#  'green': 0, 'loss': 0,  inteiros para acerto e falha
+#  'acertividade': 0, flutuante com a acertividade
+#  'apostar': False}] booleano se deve apostar ou não
+
+saves = [] # variavel para salvar as estratégias
 em_aposta = False
 tempo_de_espera = 0
 acertividade_geral = {'green': 0, 'loss': 0, 'tempo_de_espera': [], 'vari_ganho': [], 'vari_perda': []}
+save_existente = False
 for num, fec in enumerate(fechamentos):
     # usando variação com :.1f # uma casa depois da virgula
     # rsi 0-20=-2, 20-40=-1, 40-60=0, 60-80=1, 80-100=2
@@ -112,16 +124,33 @@ for num, fec in enumerate(fechamentos):
         vari_ant = float(f'{(float(fechamentos[num-2]) - (float(fechamentos[num-1])) * 100)/(float(fechamentos[num-1])):.1f}')
 
         # se ja não foi criado uma dessas, sendo vc a segunda variação, e verificar se bateu como deveria bater, se caso ouver, verificar a acertividade e se deve atualizar alguma informação
+        for n, save in enumerate(saves):
+            if (vari_ant == save['variacao'][0]):
+                save_existente = True
 
-        # verificar se ja não foi criado uma dessas sendo vc a primeira variação, verificando se a aposta esta ativa
+                if (rsi_simplificado(rsi[num-1]) == save['rsi'][0]) and (entende_media(ma_25, ma_50, ma_100, n=num-1) == save['tendencia'][0]):
+                # verificar se bateu
+                    # antes de adicionar, ver se o rsi bateu e se a tendencia bateu
+                    # repensar se esse é o melhor esqueleto
+                    if vari > 0.50 or vari < -0.50:
+                        saves[n]['variacao'][1].append(vari)
+                    elif vari < 0.50 and vari < -0.50:
+                        saves[n]['variacao_menor'].append(vari)
 
-        saves.append({'variacao': [vari_ant, vari], 
-                    'rsi': [rsi_simplificado(rsi[num-1]), rsi_simplificado(rsi[num])], 
-                    'tendencia': [entende_media(ma_25, ma_50, ma_100, n=num-1), entende_media(ma_25, ma_50, ma_100, n=num-2)], 
-                    'primeira_vari': vari_ant, 
-                    'deslocamento_final: vari_ant + vari, 
-                    'green': 0, 'loss': 0, 
-                    'acertividade': 0, 
-                    'apostar': False})
+            
+            # verificar se ja não foi criado uma dessas sendo vc a primeira variação, verificando se a aposta esta ativa
 
-
+        if save_existente == False:
+            saves.append({
+                        'variacao': [vari_ant, ([vari]) if (vari > 0.50 or vari < -0.50) else []],
+                        'variacao_menor': ([vari]) if (vari < 0.50 and vari > -0.50) else [],
+                        'rsi': [rsi_simplificado(rsi[num-1]), rsi_simplificado(rsi[num])], 
+                        'tendencia': [entende_media(ma_25, ma_50, ma_100, n=num-1), entende_media(ma_25, ma_50, ma_100, n=num)], 
+                        'primeira_vari': vari_ant, 
+                        'deslocamento_final': vari_ant + vari, 
+                        'green': 0, 'loss': 0, 
+                        'acertividade': 0, 
+                        'apostar': False
+                        })
+        else:
+            save_existente = True
