@@ -61,6 +61,20 @@ def entende_media(ma_25, ma_50, ma_100, n=-2):
             tipo = 'tendencia_subindo'
     return tipo
 
+def rsi_simplificado(rsi):
+    if rsi >= 0 and rsi < 20:
+        rsi_sim = -2
+    elif rsi >= 20 and rsi < 40:
+        rsi_sim = -1
+    elif rsi >= 40 and rsi < 60:
+        rsi_sim = 0
+    elif rsi >= 60 and rsi < 80:
+        rsi_sim = 1
+    elif rsi >= 80 and rsi <= 100:
+        rsi_sim = 2
+    
+    return rsi_sim
+
 tempo = '1m'
 # saves['btcusdt'] = {tempo : {}} tirei pq por em quanto n vai ser necessario
 
@@ -81,12 +95,33 @@ ma_25, ma_50, ma_100 = pega_media_movel(fechamentos)
 
 # apartir da qui
 # vari = f'{((ant_close - close) * 100)/close:.2f}%'
-saves = {}
+quant_save = 2 # quantidade do histórico que sera salvo para 
 vari = None
+# [{'variacao': [], 'rsi': [], 'tendencia': [], 'primeira_vari': 0, 'deslocamento_final': 0, 'green': 0, 'loss': 0, 'acertividade': 0, 'apostar': False}]
+saves = []
+em_aposta = False
+tempo_de_espera = 0
+acertividade_geral = {'green': 0, 'loss': 0, 'tempo_de_espera': [], 'vari_ganho': [], 'vari_perda': []}
 for num, fec in enumerate(fechamentos):
-    if num == 0:
-        vari = 0
-    else:
-        vari = f'{((float(fechamentos[num-1]) - float(fec)) * 100)/float(fec):.2f}%'
-    print(f'fechamento: {fec}\nvariação: {vari}\nrsi: {rsi[num]:.2f}\nmédia movel 25,50,100: {ma_25[num]:.2f} | {ma_50[num]:.2f} | {ma_100[num]:.2f}\n\n\n')
-    time.sleep(1)
+    # usando variação com :.1f # uma casa depois da virgula
+    # rsi 0-20=-2, 20-40=-1, 40-60=0, 60-80=1, 80-100=2
+    # print(f'fechamento: {fec}\nvariação: {vari:.1f}\nrsi: {rsi[num]:.2f}\nmédia movel 25,50,100: {ma_25[num]:.2f} | {ma_50[num]:.2f} | {ma_100[num]:.2f}\n\n\n')
+        
+    if not num < quant_save:
+        vari = float(f'{((float(fechamentos[num-1]) - float(fec)) * 100)/float(fec):.1f}')
+        vari_ant = float(f'{(float(fechamentos[num-2]) - (float(fechamentos[num-1])) * 100)/(float(fechamentos[num-1])):.1f}')
+
+        # se ja não foi criado uma dessas, sendo vc a segunda variação, e verificar se bateu como deveria bater, se caso ouver, verificar a acertividade e se deve atualizar alguma informação
+
+        # verificar se ja não foi criado uma dessas sendo vc a primeira variação, verificando se a aposta esta ativa
+
+        saves.append({'variacao': [vari_ant, vari], 
+                    'rsi': [rsi_simplificado(rsi[num-1]), rsi_simplificado(rsi[num])], 
+                    'tendencia': [entende_media(ma_25, ma_50, ma_100, n=num-1), entende_media(ma_25, ma_50, ma_100, n=num-2)], 
+                    'primeira_vari': vari_ant, 
+                    'deslocamento_final: vari_ant + vari, 
+                    'green': 0, 'loss': 0, 
+                    'acertividade': 0, 
+                    'apostar': False})
+
+
