@@ -55,23 +55,37 @@ def entende_media(ma_25, ma_50, ma_100, n=-2): # simplificação das médias mó
             tipo = 'subindo'
         elif ma_25 < ma_50 < ma_100:
             tipo = 'descendo'
-        elif ma_25 < ma_50 > ma_100 and ma_25 > ma_100 < ma_50:
+        elif ma_25 < ma_100 < ma_50:
             tipo = 'tendencia_descendo'
-        elif ma_25 < ma_100 > ma_50 and ma_25 > ma_50 < ma_100:
+        elif ma_25 > ma_100 > ma_50:
             tipo = 'tendencia_subindo'
+        elif ma_50 > ma_25 > ma_100:
+            tipo = 'possivel_decida'
+        elif ma_100 > ma_25 > ma_50:
+            tipo = 'possivel_subida'
+
     return tipo
 
 def rsi_simplificado(rsi): # simplificação da tendencia
+    try:
+        rsi = int(rsi)
+    except:
+        return 0
+
     if rsi >= 0 and rsi < 20:
-        rsi_sim = -2
+        rsi_sim = -3
     elif rsi >= 20 and rsi < 40:
+        rsi_sim = -2
+    elif rsi >= 40 and rsi < 50:
         rsi_sim = -1
-    elif rsi >= 40 and rsi < 60:
+    elif rsi == 50:
         rsi_sim = 0
-    elif rsi >= 60 and rsi < 80:
+    elif rsi > 50 and rsi <= 60:
         rsi_sim = 1
-    elif rsi >= 80 and rsi <= 100:
+    elif rsi > 60 and rsi <= 80:
         rsi_sim = 2
+    elif rsi > 80 and rsi <= 100:
+        rsi_sim = 3
     
     return rsi_sim
 
@@ -129,11 +143,11 @@ apostas = []
 # iniciando o loop sobre os fechamentos
 for num, fec in enumerate(fechamentos):
     # usando variação com :.1f # uma casa depois da virgula
-    # rsi 0-20=-2, 20-40=-1, 40-60=0, 60-80=1, 80-100=2
+    # rsi 0-20=-3, 20-40=-2, 40-50=-1, 50=0, 50-60=1, 60-80=1, 80-100=2
     
-    if not num < quant_save: # para não dar erro no inicio
+    if not num < 100: # para não dar erro no inicio
         vari = float(f'{((float(fechamentos[num-1]) - float(fec)) * 100)/float(fec):.1f}')
-        vari_ant = float(f'{(float(fechamentos[num-2]) - (float(fechamentos[num-1])) * 100)/(float(fechamentos[num-1])):.1f}')
+        vari_ant = float(f'{((float(fechamentos[num-2]) - float(fechamentos[num-1])) * 100)/float(fechamentos[num-1]):.1f}')
 
         for n, save in enumerate(saves): # verificando cada save para validação
             if (vari_ant == save['primeira_variacao']): # se a variação anterior bater com a primeira_variação do save
@@ -142,16 +156,17 @@ for num, fec in enumerate(fechamentos):
                     save_existente = True # salva como ja existente, para n acabar criando outro
 
                     # muda os valores dentro da chave 'aposta' caso seja necessario
-                    if vari > 0.50:
+                    if vari >= 0.1:
                         saves[n]['aposta']['cima']['green'] += 1
-                        saves[n]['aposta']['baixo']['green'] -= 1
-                    elif vari < -0.50:
-                        saves[n]['aposta']['cima']['green'] -= 1
+                        saves[n]['aposta']['baixo']['loss'] += 1
+                    elif vari <= -0.1:
+                        saves[n]['aposta']['cima']['loss'] += 1
                         saves[n]['aposta']['baixo']['green'] += 1
                     saves[n]['segunda_variacao'].append(vari)
 
                     for direcao in ['cima', 'baixo']:
-                        saves[n]['aposta'][direcao]['acertividade'] = (saves[n]['aposta'][direcao]['green'] * 100) / (saves[n]['aposta'][direcao]['green'] + saves[n]['aposta'][direcao]['loss'])
+                        if saves[n]['aposta'][direcao]['green'] != 0 and saves[n]['aposta'][direcao]['loss'] != 0:
+                            saves[n]['aposta'][direcao]['acertividade'] = (saves[n]['aposta'][direcao]['green'] * 100) / (saves[n]['aposta'][direcao]['green'] + saves[n]['aposta'][direcao]['loss'])
                     
                     if saves[n]['aposta']['cima']['acertividade'] > saves[n]['aposta']['baixo']['acertividade']:
                         saves[n]['aposta']['direcao'] = 'cima'
@@ -160,10 +175,10 @@ for num, fec in enumerate(fechamentos):
                     else:
                         saves[n]['aposta']['direcao'] = None
 
-                    if saves[n]['aposta']['cima']['acertividade'] > 80 or saves[n]['aposta']['baixo']['acertividade'] > 80:
+                    if saves[n]['aposta']['cima']['acertividade'] > 90 or saves[n]['aposta']['baixo']['acertividade'] > 90:
                         saves[n]['aposta']['apostar'] = True
                     else:
-                        saves[n]['aposta']['apostar'] = True
+                        saves[n]['aposta']['apostar'] = False
 
         if save_existente == False: # cria a estratégia caso não exista a estratégia
             saves.append({
@@ -173,11 +188,22 @@ for num, fec in enumerate(fechamentos):
                         'tendencia': entende_media(ma_25, ma_50, ma_100, n=num-1), 
                         'aposta': {'cima': {'green': 0, 'loss': 0, 'acertividade': 0}, 'baixo': {'green': 0, 'loss': 0, 'acertividade': 0}, 'apostar': False, 'direcao': None}
                         })
+            
+            if vari >= 0.50:
+                saves[-1]['aposta']['cima']['green'] += 1
+                saves[-1]['aposta']['baixo']['loss'] += 1
+            elif vari <= -0.50:
+                saves[-1]['aposta']['cima']['loss'] += 1
+                saves[-1]['aposta']['baixo']['green'] += 1
+
         else:
-            save_existente = True
+            save_existente = False
 
         for n, save in enumerate(saves): # verificando cada save para simulador de aposta
-            if (vari == save['primeira_variacao']) and (rsi_simplificado(rsi[num]) == save['rsi']) and (entende_media(ma_25, ma_50, ma_100, n=num) == save['tendencia']):
-                pass
+
+            if (vari == save['primeira_variacao']) and (rsi_simplificado(rsi[num]) == save['rsi']) and (entende_media(ma_25, ma_50, ma_100, n=num) == save['tendencia']) and (save['aposta']['apostar'] == True) and (save['aposta']['cima']['loss'] + save['aposta']['cima']['green'] >= 100):
+                print(f'estratégia numero: {n} pode apostar.\n{save}')
+                input('aperte enter para continuar')
                 # criar um sistema de aposta
 
+print('terminou!!')
