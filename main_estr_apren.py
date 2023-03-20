@@ -4,19 +4,25 @@ import numpy as np
 import pandas as pd
 import time
 import os
+import win32api
 
 #login client
 client = Client(api_key, api_secret, testnet=True)
 
 #sincronizing ao server time
+
+# gt = client.get_server_time()
+# tt=time.gmtime(int((gt["serverTime"])/1000))
+# os.system(f'touch -t {tt[0],tt[1],0,tt[2],tt[3],tt[4],tt[5],0}')
+
 gt = client.get_server_time()
 tt=time.gmtime(int((gt["serverTime"])/1000))
-os.system(f'touch -t {tt[0],tt[1],0,tt[2],tt[3],tt[4],tt[5],0}')
+win32api.SetSystemTime(tt[0],tt[1],0,tt[2],tt[3],tt[4],tt[5],0)
 
 def last_close(synbol, interval): # pegar o ultimo fechamento
     return client.futures_historical_klines(synbol, interval, '1d')[-2][4]
 
-def all_candles(synbol, interval, limit='10w'): # pegar todas as velas # a variavel limit é o tempo em que ele vai pegar as velas
+def all_candles(synbol, interval, limit='5y'): # pegar todas as velas # a variavel limit é o tempo em que ele vai pegar as velas
     return client.futures_historical_klines(synbol, interval, limit)
 
 def all_closes(candles): # para pegar todos os fechamentos de uma variavel que ja tenha as velas
@@ -72,9 +78,13 @@ def rsi_simplificado(rsi): # simplificação da tendencia
     except:
         return 0
 
-    if rsi >= 0 and rsi < 20:
+    if rsi >= 0 and rsi < 10:
+        rsi_sim = -5
+    elif rsi >= 10 and rsi < 20:
+        rsi_sim = -4
+    elif rsi >= 20 and rsi < 30:
         rsi_sim = -3
-    elif rsi >= 20 and rsi < 40:
+    elif rsi >= 30 and rsi < 40:
         rsi_sim = -2
     elif rsi >= 40 and rsi < 50:
         rsi_sim = -1
@@ -82,14 +92,18 @@ def rsi_simplificado(rsi): # simplificação da tendencia
         rsi_sim = 0
     elif rsi > 50 and rsi <= 60:
         rsi_sim = 1
-    elif rsi > 60 and rsi <= 80:
+    elif rsi > 60 and rsi <= 70:
         rsi_sim = 2
-    elif rsi > 80 and rsi <= 100:
+    elif rsi > 70 and rsi <= 80:
         rsi_sim = 3
+    elif rsi > 80 and rsi <= 90:
+        rsi_sim = 4
+    elif rsi > 90 and rsi <= 100:
+        rsi_sim = 5
     
     return rsi_sim
 
-tempo = '1m' # o tempo em que as velas vão correr
+tempo = '1h' # o tempo em que as velas vão correr
 # saves['btcusdt'] = {tempo : {}} tirei pq por em quanto n vai ser necessario
 
 # usar os fechamentos que ja foram salvos
@@ -134,76 +148,90 @@ vari = None
 
 # main
 
-saves = [] # variavel para salvar as estratégias
 em_aposta = False
 tempo_de_espera = 0
 acertividade_geral = {'green': 0, 'loss': 0, 'tempo_de_espera': [], 'vari_ganho': [], 'vari_perda': []}
-save_existente = False
-apostas = []
-# iniciando o loop sobre os fechamentos
-for num, fec in enumerate(fechamentos):
-    # usando variação com :.1f # uma casa depois da virgula
-    # rsi 0-20=-3, 20-40=-2, 40-50=-1, 50=0, 50-60=1, 60-80=1, 80-100=2
-    
-    if not num < 100: # para não dar erro no inicio
-        vari = float(f'{((float(fechamentos[num-1]) - float(fec)) * 100)/float(fec):.1f}')
-        vari_ant = float(f'{((float(fechamentos[num-2]) - float(fechamentos[num-1])) * 100)/float(fechamentos[num-1]):.1f}')
+# tempo = 30
+tempos = [1, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55, 60, 65, 70, 75, 80, 85, 90, 95, 100]
+for tempo in tempos:
+    saves = [] # variavel para salvar as estratégias
+    save_existente = False
+    apostas = []
+    nao_aparecer_mais = []
 
-        for n, save in enumerate(saves): # verificando cada save para validação
-            if (vari_ant == save['primeira_variacao']): # se a variação anterior bater com a primeira_variação do save
+    print(f'tempo atual: {tempo} {"-"*50}')
+    # iniciando o loop sobre os fechamentos
+    for num, fec in enumerate(fechamentos):
+        # usando variação com :.1f # uma casa depois da virgula
+        # rsi 0-20=-3, 20-40=-2, 40-50=-1, 50=0, 50-60=1, 60-80=2, 80-100=3
+        
+        if not num < 100+tempo: # para não dar erro no inicio
+            vari = float(f'{((float(fechamentos[num-tempo]) - float(fec)) * 100)/float(fec):.1f}')
+            vari_ant = float(f'{((float(fechamentos[num-(tempo+1)]) - float(fechamentos[num-tempo])) * 100)/float(fechamentos[num-1]):.1f}')
 
-                if (rsi_simplificado(rsi[num-1]) == save['rsi']) and (entende_media(ma_25, ma_50, ma_100, n=num-1) == save['tendencia']): # caso o resto bata tambem
-                    save_existente = True # salva como ja existente, para n acabar criando outro
+            for n, save in enumerate(saves): # verificando cada save para validação
+                if (vari_ant == save['primeira_variacao']): # se a variação anterior bater com a primeira_variação do save
 
-                    # muda os valores dentro da chave 'aposta' caso seja necessario
-                    if vari >= 0.1:
-                        saves[n]['aposta']['cima']['green'] += 1
-                        saves[n]['aposta']['baixo']['loss'] += 1
-                    elif vari <= -0.1:
-                        saves[n]['aposta']['cima']['loss'] += 1
-                        saves[n]['aposta']['baixo']['green'] += 1
-                    saves[n]['segunda_variacao'].append(vari)
+                    if (rsi_simplificado(rsi[num-1]) == save['rsi']) and (entende_media(ma_25, ma_50, ma_100, n=num-1) == save['tendencia']): # caso o resto bata tambem
+                        save_existente = True # salva como ja existente, para n acabar criando outro
 
-                    for direcao in ['cima', 'baixo']:
-                        if saves[n]['aposta'][direcao]['green'] != 0 and saves[n]['aposta'][direcao]['loss'] != 0:
-                            saves[n]['aposta'][direcao]['acertividade'] = (saves[n]['aposta'][direcao]['green'] * 100) / (saves[n]['aposta'][direcao]['green'] + saves[n]['aposta'][direcao]['loss'])
-                    
-                    if saves[n]['aposta']['cima']['acertividade'] > saves[n]['aposta']['baixo']['acertividade']:
-                        saves[n]['aposta']['direcao'] = 'cima'
-                    elif saves[n]['aposta']['cima']['acertividade'] < saves[n]['aposta']['baixo']['acertividade']:
-                        saves[n]['aposta']['direcao'] = 'baixo'
-                    else:
-                        saves[n]['aposta']['direcao'] = None
+                        # muda os valores dentro da chave 'aposta' caso seja necessario
+                        if vari >= 1:
+                            saves[n]['aposta']['cima']['green'] += 1
+                            saves[n]['aposta']['baixo']['loss'] += 1
+                        elif vari <= -1:
+                            saves[n]['aposta']['cima']['loss'] += 1
+                            saves[n]['aposta']['baixo']['green'] += 1
+                        else:
+                            saves[n]['aposta']['cima']['loss'] += 1
+                            saves[n]['aposta']['baixo']['loss'] += 1
+                        saves[n]['segunda_variacao'].append(vari)
 
-                    if saves[n]['aposta']['cima']['acertividade'] > 90 or saves[n]['aposta']['baixo']['acertividade'] > 90:
-                        saves[n]['aposta']['apostar'] = True
-                    else:
-                        saves[n]['aposta']['apostar'] = False
+                        for direcao in ['cima', 'baixo']:
+                            if saves[n]['aposta'][direcao]['green'] != 0 and saves[n]['aposta'][direcao]['loss'] != 0:
+                                saves[n]['aposta'][direcao]['acertividade'] = (saves[n]['aposta'][direcao]['green'] * 100) / (saves[n]['aposta'][direcao]['green'] + saves[n]['aposta'][direcao]['loss'])
+                        
+                        if saves[n]['aposta']['cima']['acertividade'] > saves[n]['aposta']['baixo']['acertividade']:
+                            saves[n]['aposta']['direcao'] = 'cima'
+                        elif saves[n]['aposta']['cima']['acertividade'] < saves[n]['aposta']['baixo']['acertividade']:
+                            saves[n]['aposta']['direcao'] = 'baixo'
+                        else:
+                            saves[n]['aposta']['direcao'] = None
 
-        if save_existente == False: # cria a estratégia caso não exista a estratégia
-            saves.append({
-                        'primeira_variacao': vari_ant,
-                        'segunda_variacao': [vari],
-                        'rsi': rsi_simplificado(rsi[num-1]),
-                        'tendencia': entende_media(ma_25, ma_50, ma_100, n=num-1), 
-                        'aposta': {'cima': {'green': 0, 'loss': 0, 'acertividade': 0}, 'baixo': {'green': 0, 'loss': 0, 'acertividade': 0}, 'apostar': False, 'direcao': None}
-                        })
-            
-            if vari >= 0.50:
-                saves[-1]['aposta']['cima']['green'] += 1
-                saves[-1]['aposta']['baixo']['loss'] += 1
-            elif vari <= -0.50:
-                saves[-1]['aposta']['cima']['loss'] += 1
-                saves[-1]['aposta']['baixo']['green'] += 1
+                        if saves[n]['aposta']['cima']['acertividade'] > 90 or saves[n]['aposta']['baixo']['acertividade'] > 90:
+                            saves[n]['aposta']['apostar'] = True
+                        else:
+                            saves[n]['aposta']['apostar'] = False
 
-        else:
-            save_existente = False
+            if save_existente == False: # cria a estratégia caso não exista a estratégia
+                saves.append({
+                            'primeira_variacao': vari_ant,
+                            'segunda_variacao': [vari],
+                            'rsi': rsi_simplificado(rsi[num-1]),
+                            'tendencia': entende_media(ma_25, ma_50, ma_100, n=num-1), 
+                            'aposta': {'cima': {'green': 0, 'loss': 0, 'acertividade': 0}, 'baixo': {'green': 0, 'loss': 0, 'acertividade': 0}, 'apostar': False, 'direcao': None}
+                            })
+                
+                if vari >= 1:
+                    saves[-1]['aposta']['cima']['green'] += 1
+                    saves[-1]['aposta']['baixo']['loss'] += 1
+                elif vari <= -1:
+                    saves[-1]['aposta']['cima']['loss'] += 1
+                    saves[-1]['aposta']['baixo']['green'] += 1
+                else:
+                    saves[-1]['aposta']['cima']['loss'] += 1
+                    saves[-1]['aposta']['baixo']['loss'] += 1
 
-        for n, save in enumerate(saves): # verificando cada save para simulador de aposta
+            else:
+                save_existente = False
 
-            if (vari == save['primeira_variacao']) and (rsi_simplificado(rsi[num]) == save['rsi']) and (entende_media(ma_25, ma_50, ma_100, n=num) == save['tendencia']) and (save['aposta']['apostar'] == True) and (save['aposta']['cima']['loss'] + save['aposta']['cima']['green'] >= 100):
-                print(f'estratégia numero: {n} pode apostar.\n{save}')
-                input('aperte enter para continuar')
-                # criar um sistema de aposta
+            for n, save in enumerate(saves): # verificando cada save para simulador de aposta
+
+                if (vari == save['primeira_variacao']) and (rsi_simplificado(rsi[num]) == save['rsi']) and (entende_media(ma_25, ma_50, ma_100, n=num) == save['tendencia']) and (save['aposta']['apostar'] == True) and (save['aposta']['cima']['loss'] + save['aposta']['cima']['green'] >= 100):
+                    if save not in nao_aparecer_mais:
+                        print(f'estratégia numero: {n} pode apostar.\n{save}\n\n{sorted(save["segunda_variacao"])}')
+
+                        nao_aparecer_mais.append(save)
+                    # criar um sistema de aposta
 
 print('terminou!!')

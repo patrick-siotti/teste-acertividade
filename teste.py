@@ -11,6 +11,7 @@
 # tt=time.gmtime(int((gt["serverTime"])/1000))
 # win32api.SetSystemTime(tt[0],tt[1],0,tt[2],tt[3],tt[4],tt[5],0)
 
-var1 = 0.5
+sla = [5 , 2, 10]
+# sla.sort()
 
-print(var1/0.1)
+print(sorted(sla))
