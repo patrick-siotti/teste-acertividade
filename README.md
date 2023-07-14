@@ -6,7 +6,7 @@ Esse é um script em python básico usado para testar a acertividade de apostas 
 
  - parte 1:
 
-   O script primeiramente passa dez das primeiras variações do ativo até a variação mais recente em tempos variados tentando encontrar padrões, nesse caso, se caso um padrão ocorrer mais de 5 vezes (pode ser modificado no script) com mais de 80% de acertividade (pode ser modificado no script), tendo mais que 0.5% de variação sobre o valor do ativo (pode ser modificado no script), aquele padrão é colocado como um padrão ativo no tempo determinado da quele ativo.
+   O script primeiramente passa dez das primeiras variações do ativo até a variação mais recente em tempos variados tentando encontrar padrões, nesse caso, se caso um padrão ocorrer mais de 5 vezes (pode ser modificado no script) com mais de 80% de acertividade (pode ser modificado no script), tendo mais que 1% de variação sobre o valor do ativo (pode ser modificado no script), aquele padrão é colocado como um padrão ativo no tempo determinado da quele ativo.
 
    As partes que podem ser modificadas no script são em relação a abertura da estratégia, se a estratégia vai ser mais livre ou mais privada em relação aos dados dos padrões, podendo deixar os padrões mais ou menos acertivos.
 
