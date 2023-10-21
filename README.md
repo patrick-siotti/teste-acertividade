@@ -2,6 +2,8 @@
 
 Esse é um script em python básico usado para testar a acertividade de apostas automatizadas na binance futuros, usando estratégias basicas de compra e vende em relação a variações salvas em um banco de dados. Em si ele tem conceitos bem básicos mas ainda foi um sucesso mesmo estando em protótipo.
 
+- arquivo principal de teste: main_estr_apren.py
+
 # funcionamento do script
 
  - parte 1:
